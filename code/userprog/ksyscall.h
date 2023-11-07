@@ -67,7 +67,6 @@ int SysRead(int addr, int size, OpenFileId input) {
 SpaceId SysExec(int addr) {
     /* Load command (char array form) into buffer. */
     char buffer[BUF_SIZE];
-    char *bu = buffer;
     int ch;
     int i = 0;
 
