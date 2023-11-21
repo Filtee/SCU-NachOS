@@ -227,12 +227,12 @@ Thread::Yield() {
 
     DEBUG(dbgThread, "Yielding thread: " << name);
 
-    //nextThread = kernel->scheduler->FindNextToRun();
-    //if (nextThread != NULL) {
+    // nextThread = kernel->scheduler->FindNextToRun();
+    // if (nextThread != NULL) {
     kernel->scheduler->ReadyToRun(this);
     nextThread = kernel->scheduler->FindNextToRun();
     kernel->scheduler->Run(nextThread, FALSE);
-    //}
+    // }
     (void) kernel->interrupt->SetLevel(oldLevel);
 }
 
