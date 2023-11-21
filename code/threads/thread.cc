@@ -56,9 +56,19 @@ Thread::Thread(char *threadName, int p) {
         cout << "最多只能同时创建" << MAX_THREAD_NUM << "个线程！！" << endl;
         ASSERT(threadNum <= MAX_THREAD_NUM);
     }
-
     cout << "Create Thread " << threadNum << endl;
-    Thread(threadName);
+
+    // Initialize a new thread.
+    name = threadName;
+    priority = p;
+    stackTop = NULL;
+    stack = NULL;
+    status = JUST_CREATED;
+    setPriority(p);
+    for (int i = 0; i < MachineStateSize; i++) {
+        machineState[i] = NULL;
+    }
+    space = NULL;
 }
 
 //----------------------------------------------------------------------
@@ -109,11 +119,12 @@ Thread::Fork(VoidFunctionPtr func, void *arg) {
 
     DEBUG(dbgThread, "Forking thread: " << name << " f(a): " << (int) func << " " << arg);
 
+    // Allocate a stack.
     StackAllocate(func, arg);
-
     oldLevel = interrupt->SetLevel(IntOff);
-    scheduler->ReadyToRun(this);    // ReadyToRun assumes that interrupts
-    // are disabled!
+    // Put the thread on the ready queue.
+    // ReadyToRun assumes that interrupts are disabled!
+    scheduler->ReadyToRun(this);
     (void) interrupt->SetLevel(oldLevel);
 }
 
