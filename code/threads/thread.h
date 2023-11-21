@@ -83,6 +83,23 @@ class Thread {
 
   public:
     Thread(char* debugName);		// initialize a Thread 
+    static int threadNum;
+    Thread(char* debugName, int priority);
+    int priority;
+    
+    int getPriority(){
+        return priority;
+    }
+    
+    int setPriority(int p){
+        if(p>7){
+           priority = 7;
+          }else if(p<1){
+          priority = 1;
+          }else{
+          priority = p;
+       }
+    }
     ~Thread(); 				// deallocate a Thread
 					// NOTE -- thread being deleted
 					// must not be running when delete 

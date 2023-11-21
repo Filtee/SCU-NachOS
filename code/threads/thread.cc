@@ -33,12 +33,36 @@ const int STACK_FENCEPOST = 0xdedbeef;
 //	"threadName" is an arbitrary string, useful for debugging.
 //----------------------------------------------------------------------
 
-Thread::Thread(char* threadName)
+Thread::Thread(char* threadName )
 {
-    name = threadName;
+    
+    name = threadName; 
     stackTop = NULL;
     stack = NULL;
     status = JUST_CREATED;
+    setPriority(0);
+    for (int i = 0; i < MachineStateSize; i++) {
+	machineState[i] = NULL;		// not strictly necessary, since
+					// new thread ignores contents 
+					// of machine registers
+    }
+    space = NULL;
+}
+int Thread::threadNum =0;
+
+Thread::Thread(char* threadName ,int p)
+{
+    if(++threadNum >128){
+        cout<<"最多只能同时创建128个线程！！"<<endl;
+        ASSERT(threadNum <=128);
+    }
+    cout<<"Create Thread "<<threadNum<<endl;
+    name = threadName;
+    priority = p;
+    stackTop = NULL;
+    stack = NULL;
+    status = JUST_CREATED;
+    setPriority(p);
     for (int i = 0; i < MachineStateSize; i++) {
 	machineState[i] = NULL;		// not strictly necessary, since
 					// new thread ignores contents 
@@ -208,11 +232,12 @@ Thread::Yield ()
     
     DEBUG(dbgThread, "Yielding thread: " << name);
     
-    nextThread = kernel->scheduler->FindNextToRun();
-    if (nextThread != NULL) {
+    //nextThread = kernel->scheduler->FindNextToRun();
+    //if (nextThread != NULL) {
 	kernel->scheduler->ReadyToRun(this);
+	nextThread = kernel->scheduler->FindNextToRun();
 	kernel->scheduler->Run(nextThread, FALSE);
-    }
+    //}
     (void) kernel->interrupt->SetLevel(oldLevel);
 }
 
@@ -351,7 +376,7 @@ Thread::StackAllocate (VoidFunctionPtr func, void *arg)
     machineState[StartupPCState] = PLabelToAddr(ThreadBegin);
     machineState[InitialPCState] = PLabelToAddr(func);
     machineState[InitialArgState] = arg;
-    machineState[WhenDonePCState] = PLabelToAddr(ThreadFinish);
+    machineState[WhenDonePCState] =SimpleThread PLabelToAddr(ThreadFinish);
 #else
     machineState[PCState] = (void*)ThreadRoot;
     machineState[StartupPCState] = (void*)ThreadBegin;
@@ -426,11 +451,14 @@ void
 Thread::SelfTest()
 {
     DEBUG(dbgThread, "Entering Thread::SelfTest");
-
-    Thread *t = new Thread("forked thread");
-
-    t->Fork((VoidFunctionPtr) SimpleThread, (void *) 1);
+    srand(time(NULL));
+    for(int i = 1;i<=5;i++){
+    int priority = rand()%7+1;
+    cout<<"UserThread:"<<i<<" priority:"<<priority<<endl;
+    Thread *t = new Thread("Userthread",priority);
+    t->Fork((VoidFunctionPtr) SimpleThread, (void *) i);
+}
     kernel->currentThread->Yield();
-    SimpleThread(0);
+  
 }
 
