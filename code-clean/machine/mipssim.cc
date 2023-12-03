@@ -63,7 +63,9 @@ Machine::Run()
 	cout << ", at time: " << kernel->stats->totalTicks << "\n";
     }
     kernel->interrupt->setStatus(UserMode);
+    //cout<<"???";
     for (;;) {
+	//cout<<"???";
         OneInstruction(instr);
 	kernel->interrupt->OneTick();
 	if (singleStep && (runUntilTime <= kernel->stats->totalTicks))

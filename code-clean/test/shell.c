@@ -1,7 +1,5 @@
 #include "syscall.h"
-
-int
-main()
+int main()
 {
     SpaceId newProc;
     OpenFileId input = ConsoleInput;
@@ -14,8 +12,8 @@ main()
 
     while( 1 )
     {
+	
 	Write(prompt, 2, output);
-
 	i = 0;
 	
 	do {
@@ -30,6 +28,8 @@ main()
 		newProc = Exec(buffer);
 		Join(newProc);
 	}
+	if(buffer[0]=='e'&&buffer[1]=='x'&&buffer[2]=='i'&&buffer[3]=='t'&&buffer[4]=='\0')
+		Halt();
     }
 }
 

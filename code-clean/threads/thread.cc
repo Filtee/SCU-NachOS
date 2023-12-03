@@ -32,12 +32,13 @@ const int STACK_FENCEPOST = 0xdedbeef;
 //
 //	"threadName" is an arbitrary string, useful for debugging.
 //----------------------------------------------------------------------
-
+int Thread::threadNum = 0;
 Thread::Thread(char* threadName)
 {
     name = threadName;
     stackTop = NULL;
     stack = NULL;
+    //cout<<"Test!";
     status = JUST_CREATED;
     for (int i = 0; i < MachineStateSize; i++) {
 	machineState[i] = NULL;		// not strictly necessary, since
@@ -45,6 +46,34 @@ Thread::Thread(char* threadName)
 					// of machine registers
     }
     space = NULL;
+}
+
+
+
+Thread::Thread(char* threadName,int p)
+{
+    name = threadName;
+    stackTop = NULL;
+    stack = NULL;
+    status = JUST_CREATED;
+    if(++threadNum>128)
+    {
+	cout<<"Up to 128 processes can be created!"<<endl;
+	ASSERT(threadNum<=128);
+    }
+    //cout<<"Create Thread:"<<threadNum<<endl;
+    priority=p;
+    for (int i = 0; i < MachineStateSize; i++) {
+	machineState[i] = NULL;		// not strictly necessary, since
+					// new thread ignores contents 
+					// of machine registers
+    }
+    space = NULL;
+}
+
+int Thread::getPriority()
+{
+    return priority;
 }
 
 //----------------------------------------------------------------------
@@ -101,7 +130,7 @@ Thread::Fork(VoidFunctionPtr func, void *arg)
 
     oldLevel = interrupt->SetLevel(IntOff);
     scheduler->ReadyToRun(this);	// ReadyToRun assumes that interrupts 
-					// are disabled!
+					// are disabled!d
     (void) interrupt->SetLevel(oldLevel);
 }    
 
@@ -410,7 +439,7 @@ SimpleThread(int which)
 {
     int num;
     
-    for (num = 0; num < 5; num++) {
+    for (num = 1; num < 2; num++) {
 	cout << "*** thread " << which << " looped " << num << " times\n";
         kernel->currentThread->Yield();
     }
@@ -426,10 +455,15 @@ void
 Thread::SelfTest()
 {
     DEBUG(dbgThread, "Entering Thread::SelfTest");
-
-    Thread *t = new Thread("forked thread");
-
-    t->Fork((VoidFunctionPtr) SimpleThread, (void *) 1);
+    srand(time(NULL));
+    for(int i=0;i<=131;i++)
+    {
+	int p=rand()%7+1;
+	cout<<"UserThread:"<<i<<" priority:"<<p<<endl;
+	Thread *t = new Thread("UserThread",p);
+	t->Fork((VoidFunctionPtr) SimpleThread, (void *)i);
+    }
+    
     kernel->currentThread->Yield();
     SimpleThread(0);
 }

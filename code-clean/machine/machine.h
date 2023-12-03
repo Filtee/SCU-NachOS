@@ -131,6 +131,8 @@ class Machine {
 // space, stored in memory), there is only one TLB (implemented in hardware).
 // Thus the TLB pointer should be considered as *read-only*, although 
 // the contents of the TLB are free to be modified by the kernel software.
+    TranslationEntry *globalPageTable;
+    
 
     TranslationEntry *tlb;		// this pointer should be considered 
 					// "read-only" to Nachos kernel code
@@ -143,6 +145,7 @@ class Machine {
     				// Read or write 1, 2, or 4 bytes of virtual 
 				// memory (at addr).  Return FALSE if a 
 				// correct translation couldn't be found.
+    int FindPage();
   private:
 
 // Routines internal to the machine simulation -- DO NOT call these directly
@@ -160,7 +163,7 @@ class Machine {
 				// the translation entry appropriately,
     				// and return an exception code if the 
 				// translation couldn't be completed.
-
+    void RaiseException(ExceptionType which);
     void RaiseException(ExceptionType which, int badVAddr);
 				// Trap to the Nachos kernel, because of a
 				// system call or other exception.  

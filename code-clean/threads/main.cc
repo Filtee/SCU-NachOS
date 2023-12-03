@@ -303,13 +303,30 @@ main(int argc, char **argv)
 
     // finally, run an initial user program if requested to do so
     if (userProgName != NULL) {
-      AddrSpace *space = new AddrSpace;
-      ASSERT(space != (AddrSpace *)NULL);
-      if (space->Load(userProgName)) {  // load the program into the space
-	space->Execute();              // run the program
-	ASSERTNOTREACHED();            // Execute never returns
-      }
-    }
+        //AddrSpace **space = new *AddrSpace;
+	vector<AddrSpace*> space;
+	for(int i=0;i<11;i++)
+	{
+	  space.push_back(new AddrSpace);
+	  ASSERT(space[i] != (AddrSpace *)NULL);
+	  space[i]->Load(userProgName);
+	}
+	space[9]->Execute();
+	ASSERTNOTREACHED();
+/*
+	AddrSpace *space2 = new AddrSpace;
+        ASSERT(space1 != (AddrSpace *)NULL);
+	ASSERT(space2 != (AddrSpace *)NULL); 
+        if( space1->Load(userProgName))
+	  if( space2->Load(userProgName))//载入第二个程序
+	  {
+		space1->Execute();// run the program;
+		space2->Execute();
+		ASSERTNOTREACHED();  // Execute never returns
+	  }
+*/
+     }
+
 
     // If we don't run a user program, we may get here.
     // Calling "return" would terminate the program.

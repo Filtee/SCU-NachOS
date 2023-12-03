@@ -40,6 +40,7 @@ class AddrSpace {
     ExceptionType Translate(unsigned int vaddr, unsigned int *paddr, int mode);
 
   private:
+    int s_reg[NumTotalRegs];
     TranslationEntry *pageTable;	// Assume linear page table translation
 					// for now!
     unsigned int numPages;		// Number of pages in the virtual 

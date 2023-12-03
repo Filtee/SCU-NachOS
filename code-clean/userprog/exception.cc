@@ -25,6 +25,7 @@
 #include "main.h"
 #include "syscall.h"
 #include "ksyscall.h"
+#define INT_MAX 2147483647
 //----------------------------------------------------------------------
 // ExceptionHandler
 // 	Entry point into the Nachos kernel.  Called when a user program
@@ -51,13 +52,44 @@
 void
 ExceptionHandler(ExceptionType which)
 {
+    
     int type = kernel->machine->ReadRegister(2);
-
+    int result;
+    char *argv[5];
+    char buf[80];
+    int iterator;
     DEBUG(dbgSys, "Received Exception " << which << " type: " << type << "\n");
-
+    //cerr<<SyscallException<<" "<<IllegalInstrException<<" "<<OverflowException<<" "<<AddressErrorException<<" "<<PageFaultException<<"\n";
+    //cerr<<which<<" "<<type<<"\n";
     switch (which) {
+    case PageFaultException:
+	//cout<<"test!";
+	{
+	TranslationEntry* globalPageTable = kernel->machine->globalPageTable;
+	int leastUsedPage=-1;
+	int timetamp=INT_MAX;
+	for(int i=0;i<NumPhysPages;i++)
+	{
+		if(globalPageTable[i].recUsed<timetamp)
+		{
+		  leastUsedPage=i;
+		  timetamp=globalPageTable[i].recUsed;
+	          //cout<<globalPageTable[i].recUsed<<endl;
+		}
+	}
+	globalPageTable[leastUsedPage].valid=TRUE;
+	globalPageTable[leastUsedPage].use=FALSE;
+	globalPageTable[leastUsedPage].recUsed=clock();
+	cout<<"Catch PageFaultException,change page "<<leastUsedPage<<endl;
+	//cout<<"test!";
+	return;
+	break;
+	}
     case SyscallException:
       switch(type) {
+      //case SC_Exit:
+	//exit(0);
+	//return;
       case SC_Halt:
 	DEBUG(dbgSys, "Shutdown, initiated by user program.\n");
 
@@ -70,14 +102,14 @@ ExceptionHandler(ExceptionType which)
 	DEBUG(dbgSys, "Add " << kernel->machine->ReadRegister(4) << " + " << kernel->machine->ReadRegister(5) << "\n");
 	
 	/* Process SysAdd Systemcall*/
-	int result;
+	
 	result = SysAdd(/* int op1 */(int)kernel->machine->ReadRegister(4),
 			/* int op2 */(int)kernel->machine->ReadRegister(5));
 
 	DEBUG(dbgSys, "Add returning with " << result << "\n");
 	/* Prepare Result */
 	kernel->machine->WriteRegister(2, (int)result);
-	
+	cerr<<"result is "<<result<<"\n";
 	/* Modify return point */
 	{
 	  /* set previous programm counter (debugging only)*/
@@ -96,13 +128,103 @@ ExceptionHandler(ExceptionType which)
 
 	break;
 
+
+      case SC_Write:
+	//int result;
+	//cerr<<"SC_Write test begin!\n";
+	//cerr<<kernel->machine->ReadRegister(4)<<" "<<kernel->machine->ReadRegister(5)<<" "<<kernel->machine->ReadRegister(6)<<"\n";
+	result=SysWrite((int)kernel->machine->ReadRegister(4),(int)kernel->machine->ReadRegister(5),(int)kernel->machine->ReadRegister(6));
+	//cerr<<"SC_Write test now!\n";
+	kernel->machine->WriteRegister(2,(int)result);
+	{
+	  kernel->machine->WriteRegister(PrevPCReg, kernel->machine->ReadRegister(PCReg));
+	  kernel->machine->WriteRegister(PCReg, kernel->machine->ReadRegister(PCReg) + 4);  
+	  kernel->machine->WriteRegister(NextPCReg, kernel->machine->ReadRegister(PCReg)+4);
+	}
+	//cerr<<"SC_Write test ok!\n";
+	return;
+	
+	ASSERTNOTREACHED();
+
+	break;
+
+
+      case SC_Read:
+	
+	//int result;
+	//cerr<<"SC_Read test begin!\n";
+	for(int i=1;i<=4;++i)
+		argv[i]=(unsigned int)kernel->machine->ReadRegister(i+3);
+	DEBUG(dbgSys,"SC_Read with parameters are:"<<argv[1]<<"\t"<<argv[2]<<"\t"<<argv[3]<<"\n");
+	do{
+		int size=(int)argv[2];
+		int addr=(int)argv[1];
+		//char *interator=argv[1];
+		result=SysRead(buf,size,(OpenFileId)argv[3]);
+		//cerr<<buf[0]<<" "<<size<<" "<<addr<<"\n";
+		for(iterator=0;iterator!=size;++iterator)
+			kernel->machine->WriteMem(addr++,1,buf[iterator]);
+	}while(false);
+	//cerr<<"SC_Read test now!\n";
+	kernel->machine->WriteRegister(2,(int)result);
+	{
+	  kernel->machine->WriteRegister(PrevPCReg, kernel->machine->ReadRegister(PCReg));
+	  kernel->machine->WriteRegister(PCReg, kernel->machine->ReadRegister(PCReg) + 4);  
+	  kernel->machine->WriteRegister(NextPCReg, kernel->machine->ReadRegister(PCReg)+4);
+	}
+	return;
+	//cerr<<"SC_Read test ok!\n";
+	ASSERTNOTREACHED();
+	break;
+
+
+       case SC_Exec:
+	//char *argv[5];
+	//cerr<<"SC_Exec test begin!\n";
+	argv[1]=(unsigned int)kernel->machine->ReadRegister(4);
+	DEBUG(dbgSys,"SC_Exec with parameters are:"<<argv[1]<<"\n");
+	iterator=0;
+	do{
+		kernel->machine->ReadMem((int)argv[1]+iterator,1,(int*)&buf[iterator]);
+		//cerr<<buf[iterator]<<"\n";
+		++iterator;
+	}while(iterator<80&&buf[iterator-1]!='\0');
+	//cerr<<"SC_Exec test now!\n";
+	result=SysExec(buf);
+	kernel->machine->WriteRegister(2,(int)result);
+	{
+	  kernel->machine->WriteRegister(PrevPCReg, kernel->machine->ReadRegister(PCReg));
+	  kernel->machine->WriteRegister(PCReg, kernel->machine->ReadRegister(PCReg) + 4);  
+	  kernel->machine->WriteRegister(NextPCReg, kernel->machine->ReadRegister(PCReg)+4);
+	}
+	//cerr<<"SC_Exec test ok!\n";
+	return;
+	ASSERTNOTREACHED();
+	break;
+
+
+      case SC_Join:
+	//char *argv[5];
+	argv[1]=(unsigned int)kernel->machine->ReadRegister(4);
+	DEBUG(dbgSys,"SC_Exec with parameters are:"<<argv[1]<<"\n");
+	result=SysJoin((SpaceId)argv[1]);
+	kernel->machine->WriteRegister(2,(int)result);
+	{
+	  kernel->machine->WriteRegister(PrevPCReg, kernel->machine->ReadRegister(PCReg));
+	  kernel->machine->WriteRegister(PCReg, kernel->machine->ReadRegister(PCReg) + 4);  
+	  kernel->machine->WriteRegister(NextPCReg, kernel->machine->ReadRegister(PCReg)+4);
+	}
+	return;
+	ASSERTNOTREACHED();
+	break;
+
       default:
 	cerr << "Unexpected system call " << type << "\n";
 	break;
       }
-      break;
+
     default:
-      cerr << "Unexpected user mode exception" << (int)which << "\n";
+      cerr << "Unexpected user mode exception " << (int)which << "\n";
       break;
     }
     ASSERTNOTREACHED();
