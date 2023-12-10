@@ -219,7 +219,7 @@ Machine::WriteRegister(int num, int value) {
     registers[num] = value;
 }
 
-int Machine::findFreeByLU() {
+int Machine::findFreeByLRU() {
     int mi = 0;
     for (int i = 0; i < NumPhysPages; i++) {
         ASSERT(GlobalPageTable[i].RefPageTable != NULL);
