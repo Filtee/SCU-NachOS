@@ -49,6 +49,18 @@
 //----------------------------------------------------------------------
 
 void
+incrementPC() {
+    /* set previous programm counter (debugging only)*/
+    kernel->machine->WriteRegister(PrevPCReg, kernel->machine->ReadRegister(PCReg));
+
+    /* set programm counter to next instruction (all Instructions are 4 byte wide)*/
+    kernel->machine->WriteRegister(PCReg, kernel->machine->ReadRegister(NextPCReg));
+
+    /* set next programm counter for brach execution */
+    kernel->machine->WriteRegister(NextPCReg, kernel->machine->ReadRegister(NextPCReg) + 4);
+}
+
+void
 ExceptionHandler(ExceptionType which) {
     int type = kernel->machine->ReadRegister(2);
 
@@ -92,126 +104,84 @@ ExceptionHandler(ExceptionType which) {
                     }
 
                     return;
-
                     ASSERTNOTREACHED();
-
                     break;
-                case SC_Read:
-                    //printf("Entering exception of system call: Read!\n");
-                    int my_Buffer, my_Size, my_Id;
-                    char read_buffer[128];
-                    my_Buffer = kernel->machine->ReadRegister(4);
-                    my_Size = kernel->machine->ReadRegister(5);
-                    my_Id = kernel->machine->ReadRegister(6);
-                    //printf("System Call Before Activating!\n");
-                    int Size_reading, ri;
-                    Size_reading = SysRead(read_buffer, my_Size, (SpaceId) my_Id);
-                    for (ri = 0; ri < my_Size && ri < 128; ri++) {
-                        kernel->machine->WriteMem(my_Buffer + ri, 1, read_buffer[ri]);
-                    }
-                    //printf("System Call After Exiting! Content: %c\n", (char)my_Buffer[0]);
-                    kernel->machine->WriteRegister(2, Size_reading);
-                    /* Modify return point */
-                    {
-                        /* set previous programm counter (debugging only)*/
-                        kernel->machine->WriteRegister(PrevPCReg, kernel->machine->ReadRegister(PCReg));
 
-                        /* set programm counter to next instruction (all Instructions are 4 byte wide)*/
-                        kernel->machine->WriteRegister(PCReg, kernel->machine->ReadRegister(PCReg) + 4);
+                case SC_Write:
+                    /* Debug notation. */
+                    DEBUG(dbgSys, "Write from buffer to consoleOutput" << kernel->machine->ReadRegister(4)
+                                                                       << kernel->machine->ReadRegister(5)
+                                                                       << kernel->machine->ReadRegister(6) << "\n");
 
-                        /* set next programm counter for brach execution */
-                        kernel->machine->WriteRegister(NextPCReg, kernel->machine->ReadRegister(PCReg) + 4);
-                    }
+                    /* Read from registers. */
+                    int addr;
+                    addr = (int) kernel->machine->ReadRegister(4);
+                    int size;
+                    size = (int) kernel->machine->ReadRegister(5);
+                    OpenFileId output;
+                    output = (OpenFileId) kernel->machine->ReadRegister(6);
+
+                    /* System write and load the writing result onto register 2. */
+                    kernel->machine->WriteRegister(2, SysWrite(addr, size, output));
+
+                    /* Increment PC register by 1, and return the system writing result. */
+                    incrementPC();
                     return;
                     ASSERTNOTREACHED();
                     break;
 
+                case SC_Read:
+                    /* Debug notation. */
+                    DEBUG(dbgSys, "Read file to buffer" << kernel->machine->ReadRegister(4) << ","
+                                                        << kernel->machine->ReadRegister(5) << "words" << "\n");
 
-                case SC_Write:
-                    //printf("Entering Exception handler of Write system call!\n");
-                    char write_temp[128];
-                    int write_base, write_size, write_id, write_value, wi, write_rsize;
-                    write_base = kernel->machine->ReadRegister(4);
-                    write_size = (int) kernel->machine->ReadRegister(5);
-                    write_id = (int) kernel->machine->ReadRegister(6);
-                    kernel->machine->ReadMem(write_base, 1, &write_value);
-                    for (wi = 1; wi <= write_size && write_value != '\0'; wi++) {
-                        write_temp[wi - 1] = write_value;
-                        kernel->machine->ReadMem(write_base + wi, 1, &write_value);
-                    }
-                    write_temp[--wi] = '\0';
-                    //printf("Reading finishing!\nSize:%d\nContent:\n%s\n", wi, write_temp);
-                    write_rsize = SysWrite(write_temp, wi, write_id);
-                    if (write_rsize < 0) {
-                        printf("Fail to write!\n");
-                        kernel->machine->WriteRegister(2, -1);
-                    } else {
-                        //printf("Successful writing! Writing Size: %d\n", write_rsize);
-                        kernel->machine->WriteRegister(2, write_rsize);
-                    }
-                    /* Modify return point */
-                    {
-                        /* set previous programm counter (debugging only)*/
-                        kernel->machine->WriteRegister(PrevPCReg, kernel->machine->ReadRegister(PCReg));
+                    /* Read from registers. */
+                    addr = (int) kernel->machine->ReadRegister(4);
+                    size = (int) kernel->machine->ReadRegister(5);
+                    OpenFileId input;
+                    input = (OpenFileId) kernel->machine->ReadRegister(6);
 
-                        /* set programm counter to next instruction (all Instructions are 4 byte wide)*/
-                        kernel->machine->WriteRegister(PCReg, kernel->machine->ReadRegister(PCReg) + 4);
+                    /* Call System read and load the result onto register 2. */
+                    result = SysRead(addr, size, input);
+                    kernel->machine->WriteRegister(2, (int) result);
 
-                        /* set next programm counter for brach execution */
-                        kernel->machine->WriteRegister(NextPCReg, kernel->machine->ReadRegister(PCReg) + 4);
-                    }
+                    /* Increment PC register by 1, and return the system writing result. */
+                    incrementPC();
                     return;
                     ASSERTNOTREACHED();
                     break;
 
                 case SC_Exec:
-                    //printf("Entering exception handler of Exec system call!\n");
-                    int exe_base, exe_value, ei, exe_res;
-                    char exe_temp[128];
-                    exe_base = kernel->machine->ReadRegister(4);
-                    kernel->machine->ReadMem(exe_base, 1, &exe_value);
-                    for (ei = 1; ei <= 128 && exe_value != '\0'; ei++) {
-                        exe_temp[ei - 1] = exe_value;
-                        kernel->machine->ReadMem(exe_base + ei, 1, &exe_value);
-                    }
-                    exe_temp[--ei] = '\0';
-                    //printf("Executable file name reading finishing: %s, size: %d\n", exe_temp, ei);
-                    exe_res = SysExec(exe_temp);
-                    kernel->machine->WriteRegister(2, exe_res);
-                    /* Modify return point */
-                    {
-                        /* set previous programm counter (debugging only)*/
-                        kernel->machine->WriteRegister(PrevPCReg, kernel->machine->ReadRegister(PCReg));
+                    /* Debug notation. */
+                    DEBUG(dbgSys, "execute a command" << kernel->machine->ReadRegister(4) << "\n");
 
-                        /* set programm counter to next instruction (all Instructions are 4 byte wide)*/
-                        kernel->machine->WriteRegister(PCReg, kernel->machine->ReadRegister(PCReg) + 4);
+                    /* Read from register 4 => the address of the input buffer (input command). */
+                    addr = kernel->machine->ReadRegister(4);
 
-                        /* set next programm counter for brach execution */
-                        kernel->machine->WriteRegister(NextPCReg, kernel->machine->ReadRegister(PCReg) + 4);
-                    }
+                    /* Call System Execute and load the child process id onto register 2. */
+                    pid_t child;
+                    child = SysExec(addr);
+                    kernel->machine->WriteRegister(2, (int) child);
+
+                    /* Increment PC register by 1, and return the system writing result. */
+                    incrementPC();
                     return;
                     ASSERTNOTREACHED();
                     break;
 
                 case SC_Join:
-                    //printf("Entering exeception handler of system call: join!\n");
-                    int j_result, j_id;
-                    j_id = kernel->machine->ReadRegister(4);
-                    j_result = (int) SysJoin((SpaceId) j_id);
-                    kernel->machine->WriteRegister(2, j_result);
-                    //printf("System call join exiting with code %d!\n", j_result);
-                    /* Modify return point */
-                    {
-                        /* set previous programm counter (debugging only)*/
-                        kernel->machine->WriteRegister(PrevPCReg, kernel->machine->ReadRegister(PCReg));
+                    /* Debug notation. */
+                    DEBUG(dbgSys, "join" << kernel->machine->ReadRegister(4) << "\n");
 
-                        /* set programm counter to next instruction (all Instructions are 4 byte wide)*/
-                        kernel->machine->WriteRegister(PCReg, kernel->machine->ReadRegister(PCReg) + 4);
+                    /* Read from register 4 => the input child process id. */
+                    child = (pid_t) kernel->machine->ReadRegister(4);
 
-                        /* set next programm counter for brach execution */
-                        kernel->machine->WriteRegister(NextPCReg, kernel->machine->ReadRegister(PCReg) + 4);
-                    }
-                    //printf("Join exiting!\n");
+                    /* Call System Join to wait the process to be executed. */
+                    result = SysJoin(child);
+                    kernel->machine->WriteRegister(2, (int) result);
+
+                    /* Increment PC register by 1, and return the system writing result. */
+                    incrementPC();
                     return;
                     ASSERTNOTREACHED();
                     break;
@@ -241,12 +211,12 @@ ExceptionHandler(ExceptionType which) {
             //没有空闲的页了
             if (phy == -1) {
                 //待替换的全局页表中的物理页号
-                phy = kernel->machine->findFreeByLU();
+                phy = kernel->machine->findFreeByLRU();
                 //待替换的全局页表中的原引用的虚拟页号
                 vir = kernel->machine->GlobalPageTable[phy].VirNum;
 
                 cout << "no free frame and choose virtual page " << vir << " memory frame " << phy
-                     << " as replacement by LU!" << endl;
+                     << " as replacement by LRU!" << endl;
 
                 //读取程序的名称便于将程序从磁盘读入到内存中
                 char *fileName = kernel->machine->GlobalPageTable[phy].RefPageTable[vir].DiskFile;
@@ -348,3 +318,7 @@ ExceptionHandler(ExceptionType which) {
     }
     ASSERTNOTREACHED();
 }
+// Machine::ReadMem
+//	"addr" -- the virtual address to read from
+//	"size" -- the number of bytes to read (1, 2, or 4)
+//	"value" -- the place to write the result

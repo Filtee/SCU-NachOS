@@ -83,7 +83,6 @@ Machine::Machine(bool debug) {
 
 Machine::~Machine() {
     delete[] mainMemory;
-    //释放实页页表
     delete[] GlobalPageTable;
     if (tlb != NULL)
         delete[] tlb;
@@ -224,21 +223,21 @@ int Machine::findFreeByLU() {
     int mi = 0;
     for (int i = 0; i < NumPhysPages; i++) {
         ASSERT(GlobalPageTable[i].RefPageTable != NULL);
-        //比较时间戳
+        // 比较时间戳
         if (GlobalPageTable[i].useStamp < GlobalPageTable[mi].useStamp)
             mi = i;
     }
     return mi;
 }
 
-//寻找物理内存内的空闲Frame，若没有则返回-1
+// 寻找物理内存内的空闲Frame，若没有则返回-1
 int Machine::findFreeFrame(int virAddr, TranslationEntry *ref) {
     cout << "trying to find a free frame..." << endl;
     for (int i = 0; i < NumPhysPages; i++) {
-        //如果某物理页引用指向了了某一个地址空间，则代表该页上有数据，非空闲
+        // 如果某物理页引用指向了了某一个地址空间，则代表该页上有数据，非空闲
         if (GlobalPageTable[i].RefPageTable == NULL) {
             cout << "finding memory frame " << i << " !" << endl;
-            //找到可用的空闲frame后，更新全局的页表
+            // 找到可用的空闲frame后，更新全局的页表
             GlobalPageTable[i].VirNum = virAddr;
             GlobalPageTable[i].RefPageTable = ref;
             GlobalPageTable[i].useStamp = 0;

@@ -91,14 +91,11 @@ enum ExceptionType {
 // translate.cc.
 
 
-//全局页表数据项
+// 全局页表数据项
 class GlobalEntry {
 public:
-    //引用本物理页的虚拟页号
     int VirNum = -1;
-    //使用的时间戳
     long int useStamp = 0;
-    //目前为止，引用本物理页的虚拟页号对应的地址空间的页表，用于在置换时将原虚拟页置为无效和读取对应信息
     TranslationEntry *RefPageTable = NULL;
 
     void print();
@@ -149,10 +146,10 @@ public:
 // Thus the TLB pointer should be considered as *read-only*, although 
 // the contents of the TLB are free to be modified by the kernel software.
 
-    //寻找空闲的物理页
+    // 寻找空闲的物理页
     int findFreeFrame(int, TranslationEntry *);
 
-    //全局页表
+    // 全局页表
     GlobalEntry *GlobalPageTable;
 
     TranslationEntry *tlb;        // this pointer should be considered
@@ -167,14 +164,13 @@ public:
     // memory (at addr).  Return FALSE if a
     // correct translation couldn't be found.
 
-    //利用LRU算法寻找当前最少使用的物理页
+    // 利用LRU算法寻找当前最少使用的物理页
     int findFreeByLU();
 
-    //打印全局页表，debug方法
+    // 打印全局页表，debug方法
     void printGlbPt();
-    //void printPt();
 
-    //程序元信息
+    // 程序元信息
     int *FileAddr;
 
 private:

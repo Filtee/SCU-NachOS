@@ -147,7 +147,7 @@ Machine::WriteMem(int addr, int size, int value) {
     exception = Translate(addr, &physicalAddress, size, TRUE);
     if (exception != NoException) {
         RaiseException(exception, addr);
-        //如果是缺页，则抛出缺页异常以后再度translate
+        // 如果是缺页，则抛出缺页异常以后再度translate
         if (exception == PageFaultException)
             Translate(addr, &physicalAddress, size, TRUE);
         else return FALSE;
@@ -221,9 +221,7 @@ Machine::Translate(int virtAddr, int *physAddr, int size, bool writing) {
             cout << "virtual page " << vpn << " is larger than total page num with address " << virtAddr << " !"
                  << endl;
             return AddressErrorException;
-        }
-            //如果地址空间页表中，虚拟页对应项被置为了valid或者没有分配空的物理页，则说明缺页
-        else if (!pageTable[vpn].valid || pageTable[vpn].physicalPage == -1) {
+        } else if (!pageTable[vpn].valid || pageTable[vpn].physicalPage == -1) {
             DEBUG(dbgAddr, "Invalid virtual page # " << virtAddr);
             //cout << "valid bit is FALSE or -1 memory address and cause a page fault at vpn: " << vpn << endl;
             return PageFaultException;
@@ -261,7 +259,7 @@ Machine::Translate(int virtAddr, int *physAddr, int size, bool writing) {
     if (writing)
         entry->dirty = TRUE;
     *physAddr = pageFrame * PageSize + offset;
-    //每次该地址被访问，都将时间戳加1
+
     GlobalPageTable[*physAddr / PageSize].useStamp += 1;
     ASSERT((*physAddr >= 0) && ((*physAddr + size) <= MemorySize));
     DEBUG(dbgAddr, "phys addr = " << *physAddr);
