@@ -211,12 +211,12 @@ ExceptionHandler(ExceptionType which) {
             //没有空闲的页了
             if (phy == -1) {
                 //待替换的全局页表中的物理页号
-                phy = kernel->machine->findFreeByLU();
+                phy = kernel->machine->findFreeByLRU();
                 //待替换的全局页表中的原引用的虚拟页号
                 vir = kernel->machine->GlobalPageTable[phy].VirNum;
 
                 cout << "no free frame and choose virtual page " << vir << " memory frame " << phy
-                     << " as replacement by LU!" << endl;
+                     << " as replacement by LRU!" << endl;
 
                 //读取程序的名称便于将程序从磁盘读入到内存中
                 char *fileName = kernel->machine->GlobalPageTable[phy].RefPageTable[vir].DiskFile;
