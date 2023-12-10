@@ -191,6 +191,127 @@ ExceptionHandler(ExceptionType which) {
                     break;
             }
             break;
+
+        case PageFaultException:
+            int virAddr, vpn, offset, phy, vir;
+            //磁盘文件
+            OpenFile *out_file, *in_file;
+            //待读取的虚拟entry和待替换的entry
+            virAddr = kernel->machine->ReadRegister(BadVAddrReg);
+            //虚拟页号
+            vpn = virAddr / PageSize;
+            //偏移量
+            offset = virAddr % PageSize;
+            cout << "virtual address " << virAddr << " with page " << vpn << " offset " << offset
+                 << " triggering a page fault!" << endl << endl;
+
+            //实际的替换物理页号
+            phy = kernel->machine->findFreeFrame(vpn, kernel->machine->pageTable);
+
+            //没有空闲的页了
+            if (phy == -1) {
+                //待替换的全局页表中的物理页号
+                phy = kernel->machine->findFreeByLU();
+                //待替换的全局页表中的原引用的虚拟页号
+                vir = kernel->machine->GlobalPageTable[phy].VirNum;
+
+                cout << "no free frame and choose virtual page " << vir << " memory frame " << phy
+                     << " as replacement by LU!" << endl;
+
+                //读取程序的名称便于将程序从磁盘读入到内存中
+                char *fileName = kernel->machine->GlobalPageTable[phy].RefPageTable[vir].DiskFile;
+
+                out_file = kernel->fileSystem->Open(fileName);
+                cout << "previous frame will be write back to " << fileName << endl;
+
+                ASSERT(out_file != NULL)
+                //如果是该Frame被写过，才会写回disk
+                if (kernel->machine->GlobalPageTable[phy].RefPageTable[vir].dirty) {
+                    out_file->WriteAt(&(kernel->machine->mainMemory[phy * PageSize]), PageSize,
+                                      kernel->machine->GlobalPageTable[phy].RefPageTable[vir].virtualPage * PageSize);
+                }
+                cout << "successfully write frame " << phy << " back to disk!" << endl;
+                delete out_file;
+            }
+            //else cout << "free memory frame " << phy << " is used to tackle page fault!" << endl;
+            in_file = kernel->fileSystem->Open(kernel->machine->pageTable[vpn].DiskFile);
+            cout << "Opening " << kernel->machine->pageTable[vpn].DiskFile << " !" << endl;
+            ASSERT(in_file != NULL)
+
+            //读取程序的元信息
+            int cVir, cSize, cIn, dVir, dSize, dIn, roVir, roSize, roIn;
+            cVir = kernel->machine->FileAddr[0];
+            cSize = kernel->machine->FileAddr[1];
+            cIn = kernel->machine->FileAddr[2];
+            dVir = kernel->machine->FileAddr[3];
+            dSize = kernel->machine->FileAddr[4];
+            dIn = kernel->machine->FileAddr[5];
+            roVir = kernel->machine->FileAddr[6];
+            roSize = kernel->machine->FileAddr[7];
+            roIn = kernel->machine->FileAddr[8];
+
+            //逐字节将虚拟地址对应的页的内容从磁盘写入内存中找到的物理页中
+            for (int i = 0; i < PageSize; i++) {
+                int vAddr = vpn * PageSize + i;
+                int pAddr = phy * PageSize + i;
+                //如果该数据位于代码段
+                if (vAddr >= cVir && vAddr < (cVir + cSize)) {
+                    //cout << "********code fault!********" << endl;
+                    in_file->ReadAt(&(kernel->machine->mainMemory[pAddr]), 1, cIn + vAddr - cVir); // cIn+vAddr-cVir
+                }//如果在数据段
+                else if (vAddr >= dVir && vAddr < (dVir + dSize)) {
+                    //cout << "********data fault!********" << endl;
+                    in_file->ReadAt(&(kernel->machine->mainMemory[pAddr]), 1, dIn + vAddr - dVir); //-dVir
+                }
+                    //如果在只读数据段
+                else if (vAddr >= roVir && vAddr < (roVir + roSize)) {
+                    in_file->ReadAt(&(kernel->machine->mainMemory[pAddr]), 1, roIn + vAddr - roVir);
+                } else {
+                    //执行到这里，说明目前发生的缺页的原本目的并非读入程序的代码和数据，而是开辟新的空间用于存储
+                    /*
+                    cout << "**********不能识别的缺页虚拟地址************" << endl;
+                    cout << "虚拟基址: " << virAddr << endl;
+                    cout << "错误虚拟地址: " << vAddr << endl;
+                    if (cSize > 0) cout << "代码段范围: " << cVir << " ," << cVir+cSize << endl;
+                    if (dSize > 0) cout << "数据段范围: " << dVir << " ," << dVir+dSize << endl;
+                    if (roSize > 0) cout << "只读段范围: " << roVir << " ," << roVir+roSize << endl;
+                    cout << "******************************************" << endl;*/
+                    continue;
+                    //ASSERT(FALSE);
+                }
+            }
+
+            //in_file->ReadAt(&(kernel->machine->mainMemory[phy*PageSize]), PageSize, kernel->machine->pageTable[vpn].virtualPage*PageSize);
+            cout << "successfully writing frame " << vpn << " to memory from disk!" << endl;
+
+            //更新全局页表:将旧的的物理地址对应的全局页表项删除，同时更新缺页的虚拟地址信息
+            cout << "global update: previous virtual page " << vir << ", physical page " << phy
+                 << " referencing is invalid!" << endl;
+            //因为该原页的物理地址被占，因此原引用地址空间的页表对应的虚拟页失效
+            if (kernel->machine->GlobalPageTable[phy].RefPageTable != NULL)
+                kernel->machine->GlobalPageTable[phy].RefPageTable[vir].valid = FALSE;
+            //更新的引用该物理页的虚拟页号
+            kernel->machine->GlobalPageTable[phy].VirNum = kernel->machine->pageTable[vpn].virtualPage;
+            //更新的引用该物理页的地址空间的页表
+            kernel->machine->GlobalPageTable[phy].RefPageTable = kernel->machine->pageTable;
+            kernel->machine->GlobalPageTable[phy].useStamp = 0;
+            cout << "new global entry : " << phy << " , " << kernel->machine->pageTable[vpn].virtualPage << endl;
+
+            //更新地址空间的程序页表
+            kernel->machine->pageTable[vpn].physicalPage = phy;
+            kernel->machine->pageTable[vpn].valid = TRUE;
+            kernel->machine->pageTable[vpn].use = FALSE;
+            kernel->machine->pageTable[vpn].dirty = FALSE;
+            kernel->machine->pageTable[vpn].readOnly = FALSE;
+            delete in_file;
+            cout << "page fault exception ends!new GlobalPageTable:" << endl;
+
+            //打印全局页表
+            kernel->machine->printGlbPt();
+            return;
+            ASSERTNOTREACHED();
+            break;
+
         default:
             cerr << "Unexpected user mode exception" << (int) which << "\n";
             break;

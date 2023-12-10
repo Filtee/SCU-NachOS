@@ -8,12 +8,13 @@
 #include "syscall.h"
 
 int
-main()
-{
-  int result;
-  
-  result = Add(42, 23);
+main() {
+    int result, another;
 
-  Halt();
-  /* not reached */
+    result = Add(1, 2);
+    another = 3;
+    result = Add(result, another);
+
+    Halt();
+    /* not reached */
 }

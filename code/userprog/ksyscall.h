@@ -33,7 +33,10 @@ void SysHalt() {
 }
 
 int SysAdd(int op1, int op2) {
+    cout << "************************系统调用结果****************" << endl;
+    cout << op1 << " + " << op2 << " = " << op1 + op2 << endl;
     return op1 + op2;
+
 }
 
 int SysWrite(int addr, int size, OpenFileId output) {

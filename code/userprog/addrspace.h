@@ -16,38 +16,49 @@
 #include "copyright.h"
 #include "filesys.h"
 
-#define UserStackSize		1024 	// increase this as necessary!
+#define UserStackSize        1024    // increase this as necessary!
 
 class AddrSpace {
-  public:
-    AddrSpace();			// Create an address space.
-    ~AddrSpace();			// De-allocate an address space
+public:
+    // Create an address space.
+    AddrSpace();
 
-    bool Load(char *fileName);		// Load a program into addr space from
-                                        // a file
-					// return false if not found
+    // De-allocate an address space.
+    ~AddrSpace();
 
-    void Execute();             	// Run a program
-					// assumes the program has already
-                                        // been loaded
+    // Load a program into addr space from a file,
+    // return false if not found.
+    bool Load(char *fileName);
 
-    void SaveState();			// Save/restore address space-specific
-    void RestoreState();		// info on a context switch 
+    // Run a program assumes the program has already been loaded.
+    void Execute();
+
+    // Save/restore address space-specific, info on a context switch.
+    void SaveState();
+
+    void RestoreState();
+
+    // Store the meta information of the current program,
+    // such as the size and virtual address of the code and data.
+    int* FileAddr;
 
     // Translate virtual address _vaddr_
     // to physical address _paddr_. _mode_
     // is 0 for Read, 1 for Write.
     ExceptionType Translate(unsigned int vaddr, unsigned int *paddr, int mode);
 
-  private:
-    TranslationEntry *pageTable;	// Assume linear page table translation
-					// for now!
-    unsigned int numPages;		// Number of pages in the virtual 
-					// address space
+private:
+    // Assume linear page table translation for now!
+    TranslationEntry *pageTable;
 
-    void InitRegisters();		// Initialize user-level CPU registers,
-					// before jumping to user code
+    // Number of pages in the virtual address space.
+    unsigned int numPages;
 
+    // Initialize user-level CPU registers, before jumping to user code.
+    void InitRegisters();
+
+    // Temporary storage of registers.
+    int* s_reg;
 };
 
 #endif // ADDRSPACE_H

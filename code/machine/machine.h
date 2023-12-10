@@ -27,8 +27,8 @@
 
 // Definitions related to the size, and format of user memory
 
-const int PageSize = 128; 		// set the page size equal to
-					// the disk sector size, for simplicity
+const int PageSize = 128;        // set the page size equal to
+// the disk sector size, for simplicity
 
 //
 // You are allowed to change this value.
@@ -38,22 +38,23 @@ const int PageSize = 128; 		// set the page size equal to
 const int NumPhysPages = 128;
 
 const int MemorySize = (NumPhysPages * PageSize);
-const int TLBSize = 4;			// if there is a TLB, make it small
+const int TLBSize = 4;            // if there is a TLB, make it small
 
-enum ExceptionType { NoException,           // Everything ok!
-		     SyscallException,      // A program executed a system call.
-		     PageFaultException,    // No valid translation found
-		     ReadOnlyException,     // Write attempted to page marked 
-					    // "read-only"
-		     BusErrorException,     // Translation resulted in an 
-					    // invalid physical address
-		     AddressErrorException, // Unaligned reference or one that
-					    // was beyond the end of the
-					    // address space
-		     OverflowException,     // Integer overflow in add or sub.
-		     IllegalInstrException, // Unimplemented or reserved instr.
-		     
-		     NumExceptionTypes
+enum ExceptionType {
+    NoException,           // Everything ok!
+    SyscallException,      // A program executed a system call.
+    PageFaultException,    // No valid translation found
+    ReadOnlyException,     // Write attempted to page marked
+    // "read-only"
+    BusErrorException,     // Translation resulted in an
+    // invalid physical address
+    AddressErrorException, // Unaligned reference or one that
+    // was beyond the end of the
+    // address space
+    OverflowException,     // Integer overflow in add or sub.
+    IllegalInstrException, // Unimplemented or reserved instr.
+
+    NumExceptionTypes
 };
 
 // User program CPU state.  The full set of MIPS registers, plus a few
@@ -61,19 +62,19 @@ enum ExceptionType { NoException,           // Everything ok!
 // any two instructions (thus we need to keep track of things like load
 // delay slots, etc.)
 
-#define StackReg	29	// User's stack pointer
-#define RetAddrReg	31	// Holds return address for procedure calls
-#define NumGPRegs	32	// 32 general purpose registers on MIPS
-#define HiReg		32	// Double register to hold multiply result
-#define LoReg		33
-#define PCReg		34	// Current program counter
-#define NextPCReg	35	// Next program counter (for branch delay) 
-#define PrevPCReg	36	// Previous program counter (for debugging)
-#define LoadReg		37	// The register target of a delayed load.
-#define LoadValueReg 	38	// The value to be loaded by a delayed load.
-#define BadVAddrReg	39	// The failing virtual address on an exception
+#define StackReg    29    // User's stack pointer
+#define RetAddrReg    31    // Holds return address for procedure calls
+#define NumGPRegs    32    // 32 general purpose registers on MIPS
+#define HiReg        32    // Double register to hold multiply result
+#define LoReg        33
+#define PCReg        34    // Current program counter
+#define NextPCReg    35    // Next program counter (for branch delay)
+#define PrevPCReg    36    // Previous program counter (for debugging)
+#define LoadReg        37    // The register target of a delayed load.
+#define LoadValueReg    38    // The value to be loaded by a delayed load.
+#define BadVAddrReg    39    // The failing virtual address on an exception
 
-#define NumTotalRegs 	40
+#define NumTotalRegs    40
 
 // The following class defines the simulated host workstation hardware, as 
 // seen by user programs -- the CPU registers, main memory, etc.
@@ -88,22 +89,32 @@ enum ExceptionType { NoException,           // Everything ok!
 // The procedures in this class are defined in machine.cc, mipssim.cc, and
 // translate.cc.
 
+class GlobalEntry {
+public:
+    int VirNum = -1;
+    long int useStamp = 0;
+    TranslationEntry *RefPageTable = NULL;
+
+    void print();
+};
+
 class Instruction;
+
 class Interrupt;
 
 class Machine {
-  public:
-    Machine(bool debug);	// Initialize the simulation of the hardware
-				// for running user programs
-    ~Machine();			// De-allocate the data structures
+public:
+    Machine(bool debug);    // Initialize the simulation of the hardware
+    // for running user programs
+    ~Machine();            // De-allocate the data structures
 
 // Routines callable by the Nachos kernel
-    void Run();	 		// Run a user program
+    void Run();            // Run a user program
 
-    int ReadRegister(int num);	// read the contents of a CPU register
+    int ReadRegister(int num);    // read the contents of a CPU register
 
     void WriteRegister(int num, int value);
-				// store a value into a CPU register
+    // store a value into a CPU register
 
 // Data structures accessible to the Nachos kernel -- main memory and the
 // page table/TLB.
@@ -111,8 +122,8 @@ class Machine {
 // Note that *all* communication between the user program and the kernel 
 // are in terms of these data structures (plus the CPU registers).
 
-    char *mainMemory;		// physical memory to store user program,
-				// code and data, while executing
+    char *mainMemory;        // physical memory to store user program,
+    // code and data, while executing
 
 // NOTE: the hardware translation of virtual addresses in the user program
 // to physical addresses (relative to the beginning of "mainMemory")
@@ -132,59 +143,72 @@ class Machine {
 // Thus the TLB pointer should be considered as *read-only*, although 
 // the contents of the TLB are free to be modified by the kernel software.
 
-    TranslationEntry *tlb;		// this pointer should be considered 
-					// "read-only" to Nachos kernel code
+    // Find the free frame in the main memory.
+    int findFreeFrame(int, TranslationEntry *);
+
+    GlobalEntry *GlobalPageTable;
+
+    // This pointer should be considered "read-only" to Nachos kernel code
+    TranslationEntry *tlb;
 
     TranslationEntry *pageTable;
     unsigned int pageTableSize;
 
-    bool ReadMem(int addr, int size, int* value);
+    bool ReadMem(int addr, int size, int *value);
+
     bool WriteMem(int addr, int size, int value);
-    				// Read or write 1, 2, or 4 bytes of virtual 
-				// memory (at addr).  Return FALSE if a 
-				// correct translation couldn't be found.
-  private:
+    // Read or write 1, 2, or 4 bytes of virtual
+    // memory (at addr).  Return FALSE if a
+    // correct translation couldn't be found.
+
+    int findFreeByLRU();
+
+    void printGlbPt();
+
+    int *FileAddr;
+
+private:
 
 // Routines internal to the machine simulation -- DO NOT call these directly
-    void DelayedLoad(int nextReg, int nextVal);  	
-				// Do a pending delayed load (modifying a reg)
+    void DelayedLoad(int nextReg, int nextVal);
+    // Do a pending delayed load (modifying a reg)
 
-    void OneInstruction(Instruction *instr); 	
-    				// Run one instruction of a user program.
-    
+    void OneInstruction(Instruction *instr);
+    // Run one instruction of a user program.
 
 
-    ExceptionType Translate(int virtAddr, int* physAddr, int size,bool writing);
-    				// Translate an address, and check for 
-				// alignment.  Set the use and dirty bits in 
-				// the translation entry appropriately,
-    				// and return an exception code if the 
-				// translation couldn't be completed.
+
+    ExceptionType Translate(int virtAddr, int *physAddr, int size, bool writing);
+    // Translate an address, and check for
+    // alignment.  Set the use and dirty bits in
+    // the translation entry appropriately,
+    // and return an exception code if the
+    // translation couldn't be completed.
 
     void RaiseException(ExceptionType which, int badVAddr);
-				// Trap to the Nachos kernel, because of a
-				// system call or other exception.  
+    // Trap to the Nachos kernel, because of a
+    // system call or other exception.
 
-    void Debugger();		// invoke the user program debugger
-    void DumpState();		// print the user CPU and memory state 
+    void Debugger();        // invoke the user program debugger
+    void DumpState();        // print the user CPU and memory state
 
 
 // Internal data structures
 
     int registers[NumTotalRegs]; // CPU registers, for executing user programs
 
-    bool singleStep;		// drop back into the debugger after each
-				// simulated instruction
-    int runUntilTime;		// drop back into the debugger when simulated
-				// time reaches this value
+    bool singleStep;        // drop back into the debugger after each
+    // simulated instruction
+    int runUntilTime;        // drop back into the debugger when simulated
+    // time reaches this value
 
-    friend class Interrupt;		// calls DelayedLoad()    
+    friend class Interrupt;        // calls DelayedLoad()
 };
 
 extern void ExceptionHandler(ExceptionType which);
-				// Entry point into Nachos for handling
-				// user system calls and exceptions
-				// Defined in exception.cc
+// Entry point into Nachos for handling
+// user system calls and exceptions
+// Defined in exception.cc
 
 
 // Routines for converting Words and Short Words to and from the
@@ -199,8 +223,11 @@ extern void ExceptionHandler(ExceptionType which);
 //	   contents of main memory
 
 unsigned int WordToHost(unsigned int word);
+
 unsigned short ShortToHost(unsigned short shortword);
+
 unsigned int WordToMachine(unsigned int word);
+
 unsigned short ShortToMachine(unsigned short shortword);
 
 #endif // MACHINE_H
