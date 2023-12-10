@@ -165,7 +165,7 @@ public:
     // correct translation couldn't be found.
 
     // 利用LRU算法寻找当前最少使用的物理页
-    int findFreeByLU();
+    int findFreeByLRU();
 
     // 打印全局页表，debug方法
     void printGlbPt();
