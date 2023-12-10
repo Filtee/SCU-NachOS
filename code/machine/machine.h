@@ -24,6 +24,7 @@
 #include "copyright.h"
 #include "utility.h"
 #include "translate.h"
+//#include "noff.h"
 
 // Definitions related to the size, and format of user memory
 
@@ -89,10 +90,15 @@ enum ExceptionType {
 // The procedures in this class are defined in machine.cc, mipssim.cc, and
 // translate.cc.
 
+
+//全局页表数据项
 class GlobalEntry {
 public:
+    //引用本物理页的虚拟页号
     int VirNum = -1;
+    //使用的时间戳
     long int useStamp = 0;
+    //目前为止，引用本物理页的虚拟页号对应的地址空间的页表，用于在置换时将原虚拟页置为无效和读取对应信息
     TranslationEntry *RefPageTable = NULL;
 
     void print();
@@ -143,14 +149,14 @@ public:
 // Thus the TLB pointer should be considered as *read-only*, although 
 // the contents of the TLB are free to be modified by the kernel software.
 
-    // Find the free frame in the main memory.
+    //寻找空闲的物理页
     int findFreeFrame(int, TranslationEntry *);
 
+    //全局页表
     GlobalEntry *GlobalPageTable;
 
-    // This pointer should be considered "read-only" to Nachos kernel code
-    TranslationEntry *tlb;
-
+    TranslationEntry *tlb;        // this pointer should be considered
+    // "read-only" to Nachos kernel code
     TranslationEntry *pageTable;
     unsigned int pageTableSize;
 
@@ -161,10 +167,14 @@ public:
     // memory (at addr).  Return FALSE if a
     // correct translation couldn't be found.
 
-    int findFreeByLRU();
+    //利用LRU算法寻找当前最少使用的物理页
+    int findFreeByLU();
 
+    //打印全局页表，debug方法
     void printGlbPt();
+    //void printPt();
 
+    //程序元信息
     int *FileAddr;
 
 private:

@@ -7,6 +7,7 @@
 
 #include "syscall.h"
 
+//修改add测试程序
 int
 main() {
     int result, another;

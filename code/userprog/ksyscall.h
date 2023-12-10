@@ -12,25 +12,16 @@
 #define __USERPROG_KSYSCALL_H__
 
 #include "kernel.h"
-#include <stdlib.h>
-#include <string.h>
-#include <sys/time.h>
-#include <sys/file.h>
-#include <stdarg.h>
-#include <stdio.h>
-#include <fcntl.h>
-#include <unistd.h>
-#include <sys/wait.h>
-#include <sched.h>
-#include <signal.h>
-#include <sys/types.h>
-#include <pthread.h>
 
-#define BUF_SIZE 60
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+
 
 void SysHalt() {
     kernel->interrupt->Halt();
 }
+
 
 int SysAdd(int op1, int op2) {
     cout << "************************系统调用结果****************" << endl;
@@ -39,62 +30,40 @@ int SysAdd(int op1, int op2) {
 
 }
 
-int SysWrite(int addr, int size, OpenFileId output) {
-    /* Load memory into buffer. */
-    char buffer[BUF_SIZE];
-    for (int i = 0; i < size; ++i) {
-        kernel->machine->ReadMem(addr, 1, (int *) &buffer[i]);
-        addr++;
-    }
-    /* Return result of write. */
-    return write(output, buffer, (size_t) size);
-}
-
-int SysRead(int addr, int size, OpenFileId input) {
-    /* Load input into buffer (as an array). */
-    char buffer[BUF_SIZE];
-    read(input, buffer, (size_t) size);
-    /* Write buffer into the given address. */
-    if (input == ConsoleInput) {
-        int i = 0;
-        while (i < size && buffer[i] != '\0') {
-            kernel->machine->WriteMem(addr, 1, buffer[i]);
-            addr++, i++;
-        }
-        kernel->machine->WriteMem(addr, 1, (char) NULL);
-    }
-    return 1;
-}
-
-
-SpaceId SysExec(int addr) {
-    /* Load command (char array form) into buffer. */
-    char buffer[BUF_SIZE];
+////////
+int SysWrite(int buf, int size, int id) {
+    char buffer[128];
+    int count = 0;
     int ch;
-    int i = 0;
-
     do {
-        kernel->machine->ReadMem(addr, 1, (int *) &ch);
-        buffer[i] = *((char *) &ch);
-        addr++, i++;
-    } while (*((char *) &ch) != '\0');
+        kernel->machine->ReadMem(buf, 1, &ch);
+        buf++;
+        buffer[count] = (char) ch;
+    } while (ch != '\0' && count++ <= 127);
+    return write(id, buffer, (size_t) size);
+}
 
-    /* Fork the process to execute. */
-    pid_t child;
-    child = vfork();
-
-    if (child == 0) {
-        execl("/bin/sh", "/bin/sh", "-c", buffer, NULL);
-        _exit(EXIT_FAILURE);
-    } else if (child < 0) {
-        return EPERM;
-    }
-    return (SpaceId) child;
+int SysRead(char *buffer, int size, OpenFileId id) {
+    return read(id, buffer, size);
 }
 
 int SysJoin(SpaceId id) {
-    return waitpid((pid_t) id, (int *) 0, 0);
+    return waitpid(id, (int *) 0, 0);
 }
+
+SpaceId SysExec(char *exec_name) {
+    char *argv[] = {"bash", "-c", exec_name, NULL};
+    pid_t pid;
+    if (pid = fork() == 0) {
+        execvp("bash", argv);
+        exit(0);
+    } else if (pid == 1) {
+        return (SpaceId) pid;
+    } else
+        return -1;
+}
+////////
 
 
 #endif /* ! __USERPROG_KSYSCALL_H__ */
+

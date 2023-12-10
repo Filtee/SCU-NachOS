@@ -208,13 +208,7 @@ AddrSpace::Load(char *fileName)
     if (noffH.initData.size > 0) {
         DEBUG(dbgAddr, "Initializing data segment.");
 	DEBUG(dbgAddr, noffH.initData.virtualAddr << ", " << noffH.initData.size);
-	for (int i=0; i < noffH.initData.size; i++){
-		vaddr = noffH.initData.virtualAddr+i;
-		add = pageTable[vaddr/PageSize].physicalPage*PageSize + vaddr%PageSize;
-		if (pageTable[vaddr/PageSize].physicalPage >= 0){
-			executable->ReadAt(&(kernel->machine->mainMemory[add]), 1, noffH.initData.inFileAddr+i);		
-		}
-	}/*
+	/*
 	if (pageTable[noffH.initData.virtualAddr/PageSize].physicalPage >= 0){
 		add = pageTable[noffH.initData.virtualAddr/PageSize].physicalPage*PageSize + noffH.initData.virtualAddr%PageSize;
 		cout << "data:           vir add: " << noffH.initData.virtualAddr << " phy add: " << add << endl;

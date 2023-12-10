@@ -291,7 +291,8 @@ main(int argc, char **argv) {
 #endif // FILESYS_STUB
 
     // finally, run an initial user program if requested to do so
-    // 申请两个地址空间，但只运行第二个
+
+    //按ppt上的，申请两个地址空间，但只运行第二个
     if (userProgName != NULL) {
         AddrSpace *space1 = new AddrSpace;
         AddrSpace *space2 = new AddrSpace;

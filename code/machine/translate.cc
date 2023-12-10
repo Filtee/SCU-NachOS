@@ -84,6 +84,7 @@ ShortToMachine(unsigned short shortword) { return ShortToHost(shortword); }
 
 bool
 Machine::ReadMem(int addr, int size, int *value) {
+    cout << "Reading virtual address " << addr << endl;
     int data;
     ExceptionType exception;
     int physicalAddress;
@@ -93,6 +94,7 @@ Machine::ReadMem(int addr, int size, int *value) {
     exception = Translate(addr, &physicalAddress, size, FALSE);
     if (exception != NoException) {
         RaiseException(exception, addr);
+        //如果是缺页，则抛出缺页异常以后再度translate
         if (exception == PageFaultException)
             Translate(addr, &physicalAddress, size, FALSE);
         else return FALSE;
@@ -136,6 +138,7 @@ Machine::ReadMem(int addr, int size, int *value) {
 
 bool
 Machine::WriteMem(int addr, int size, int value) {
+    cout << "Writing to virtual address " << addr << endl;
     ExceptionType exception;
     int physicalAddress;
 
@@ -144,6 +147,7 @@ Machine::WriteMem(int addr, int size, int value) {
     exception = Translate(addr, &physicalAddress, size, TRUE);
     if (exception != NoException) {
         RaiseException(exception, addr);
+        //如果是缺页，则抛出缺页异常以后再度translate
         if (exception == PageFaultException)
             Translate(addr, &physicalAddress, size, TRUE);
         else return FALSE;
@@ -187,6 +191,7 @@ Machine::WriteMem(int addr, int size, int value) {
 
 ExceptionType
 Machine::Translate(int virtAddr, int *physAddr, int size, bool writing) {
+    //cout << "translating virtual address " << virtAddr << endl;
     int i;
     unsigned int vpn, offset;
     TranslationEntry *entry;
@@ -197,6 +202,7 @@ Machine::Translate(int virtAddr, int *physAddr, int size, bool writing) {
 // check for alignment errors
     if (((size == 4) && (virtAddr & 0x3)) || ((size == 2) && (virtAddr & 0x1))) {
         DEBUG(dbgAddr, "Alignment problem at " << virtAddr << ", size " << size);
+        cout << "alignment problem at " << virtAddr << ", size " << size << endl;
         return AddressErrorException;
     }
 
@@ -215,8 +221,11 @@ Machine::Translate(int virtAddr, int *physAddr, int size, bool writing) {
             cout << "virtual page " << vpn << " is larger than total page num with address " << virtAddr << " !"
                  << endl;
             return AddressErrorException;
-        } else if (!pageTable[vpn].valid || pageTable[vpn].physicalPage == -1) {
+        }
+            //如果地址空间页表中，虚拟页对应项被置为了valid或者没有分配空的物理页，则说明缺页
+        else if (!pageTable[vpn].valid || pageTable[vpn].physicalPage == -1) {
             DEBUG(dbgAddr, "Invalid virtual page # " << virtAddr);
+            //cout << "valid bit is FALSE or -1 memory address and cause a page fault at vpn: " << vpn << endl;
             return PageFaultException;
         }
         entry = &pageTable[vpn];
@@ -228,6 +237,7 @@ Machine::Translate(int virtAddr, int *physAddr, int size, bool writing) {
             }
         if (entry == NULL) {                // not found
             DEBUG(dbgAddr, "Invalid TLB entry for this virtual page!");
+            cout << "fetched entry is null and cause a page fault!" << endl;
             return PageFaultException;        // really, this is a TLB fault,
             // the page may be in memory,
             // but not in the TLB
@@ -246,14 +256,13 @@ Machine::Translate(int virtAddr, int *physAddr, int size, bool writing) {
         DEBUG(dbgAddr, "Illegal pageframe " << pageFrame);
         return BusErrorException;
     }
+
     entry->use = TRUE;        // set the use, dirty bits
     if (writing)
         entry->dirty = TRUE;
     *physAddr = pageFrame * PageSize + offset;
-
-    // Update the useStamp of the page.
+    //每次该地址被访问，都将时间戳加1
     GlobalPageTable[*physAddr / PageSize].useStamp += 1;
-
     ASSERT((*physAddr >= 0) && ((*physAddr + size) <= MemorySize));
     DEBUG(dbgAddr, "phys addr = " << *physAddr);
     cout << "translating from virtual address " << virtAddr << " to " << *physAddr << endl;
