@@ -215,7 +215,7 @@ Machine::Translate(int virtAddr, int *physAddr, int size, bool writing) {
             cout << "virtual page " << vpn << " is larger than total page num with address " << virtAddr << " !"
                  << endl;
             return AddressErrorException;
-        } else if (!pageTable[vpn].valid || pagetable[vpn].physicalPage == -1) {
+        } else if (!pageTable[vpn].valid || pageTable[vpn].physicalPage == -1) {
             DEBUG(dbgAddr, "Invalid virtual page # " << virtAddr);
             return PageFaultException;
         }
